@@ -41,7 +41,7 @@ sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.to
 systemctl restart containerd
 systemctl enable containerd
 
-# Install Kubernetes components
+# Kubernetes componenten installeren
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
@@ -52,18 +52,22 @@ apt update
 apt install -y kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl
 
-# Initialize the Kubernetes cluster (only on the first master node)
-# Uncomment and modify the following line on the first master node
-# kubeadm init --control-plane-endpoint "lb.telkom.be:6443" --upload-certs --pod-network-cidr=192.168.0.0/16
+# Controleer of dit de eerste master node is die geïnitialiseerd moet worden
+if [ ! -f "/etc/kubernetes/admin.conf" ]; then
+    echo "Dit lijkt de eerste master node te zijn. Voer het volgende commando uit om het cluster te initialiseren:"
+    echo "sudo kubeadm init --control-plane-endpoint \"lb.telkom.be:6443\" --upload-certs --pod-network-cidr=192.168.0.0/16"
+    echo "Na initialisatie, voer de volgende commando's uit:"
+    echo "mkdir -p \$HOME/.kube"
+    echo "sudo cp -i /etc/kubernetes/admin.conf \$HOME/.kube/config"
+    echo "sudo chown \$(id -u):\$(id -g) \$HOME/.kube/config"
+    echo "kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml"
+else
+    # Als admin.conf al bestaat, configureer kubectl
+    mkdir -p $HOME/.kube
+    cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+    chown $(id -u):$(id -g) $HOME/.kube/config
+    echo "kubectl is geconfigureerd voor de huidige gebruiker."
+fi
 
-# Set up kubectl for the root user
-mkdir -p $HOME/.kube
-cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-chown $(id -u):$(id -g) $HOME/.kube/config
-
-# Install Calico network plugin (only on the first master node)
-# Uncomment the following line on the first master node
-# kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
-
-echo "Master node setup complete. If this is the first master node, please initialize the cluster with kubeadm init."
-echo "If this is an additional master node, please join the cluster using the join command from the first master node."
+echo "Master node setup compleet."
+echo "Als dit een extra master node is, gebruik dan het join commando van de eerste master node om toe te treden tot het cluster."
